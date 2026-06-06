@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>リストファインダー更新CSV作成ツール</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      background: #f6f7f9;
+      color: #222;
+    }
+
+    .container {
+      max-width: 920px;
+      margin: 40px auto;
+      padding: 24px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      font-size: 24px;
+      margin: 0 0 12px;
+    }
+
+    .lead {
+      color: #555;
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }
+
+    .upload-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .upload-box {
+      border: 2px dashed #c9d2df;
+      border-radius: 14px;
+      padding: 20px;
+      background: #fafbfc;
+    }
+
+    .upload-box h2 {
+      font-size: 18px;
+      margin: 0 0 12px;
+    }
+
+    input[type="file"] {
+      width: 100%;
+    }
+
+    .status {
+      padding: 16px;
+      background: #f0f4f8;
+      border-radius: 12px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      font-size: 14px;
+    }
+
+    .status.error {
+      background: #fff0f0;
+      color: #a40000;
+    }
+
+    .status.success {
+      background: #effaf2;
+      color: #145c2b;
+    }
+
+    .note {
+      margin-top: 20px;
+      font-size: 13px;
+      color: #666;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 720px) {
+      .upload-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .container {
+        margin: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>リストファインダー更新CSV作成ツール</h1>
+    <p class="lead">
+      リストファインダーCSVとサスケCSVをアップロードすると、突き合わせ・加工・絞り込みを行い、
+      リストファインダー更新用CSVを自動ダウンロードします。
+    </p>
+
+    <div class="upload-grid">
+      <section class="upload-box">
+        <h2>1. リストファインダーCSV</h2>
+        <input id="lfFile" type="file" accept=".csv,text/csv" />
+      </section>
+
+      <section class="upload-box">
+        <h2>2. サスケCSV</h2>
+        <input id="sasukeFile" type="file" accept=".csv,text/csv" />
+      </section>
+    </div>
+
+    <div id="status" class="status">
+      CSVを2つ選択してください。2つ揃うと自動でETL処理を開始します。
+    </div>
+
+    <p class="note">
+      ※すべての処理はブラウザ内で完結します。CSVファイルは外部サーバーへ送信されません。<br>
+      ※入力CSVはUTF-8 / Shift-JISの自動判定に対応しています。出力CSVはUTF-8 BOM付きです。
+    </p>
+  </main>
+
+  <script>
+    const lfInput = document.getElementById("lfFile");
+    const sasukeInput = document.getElementById("sasukeFile");
+    const statusEl = document.getElementById("status");
+
+    const OUTPUT_HEADERS = [
+      "(*)連携キー",
+      "(*)企業名(個人)",
+      "(*)企業名カナ",
+      "(*)部署",
+      "(*)役職",
+      "(*)氏",
+      "(*)名",
+      "(*)氏カナ",
+      "(*)名カナ",
+      "(*)メールアドレス",
+      "(*)電話1(個人)",
+      "(*)電話2(個人)",
+      "(*)FAX(個人)",
+      "(*)携帯番号",
+      "(*)郵便番号",
+      "(*)都道府県",
+      "(*)市区町村以下",
+      "(*)ビル",
+      "(*)URL(個人)",
+      "(*)サスケ番号",
+      "(*)企業ID",
+      "(*)最終商談日",
+      "(*)自由項目4",
+      "(*)自由項目5",
+      "(*)メモ",
+      "(*)ステータス",
+      "担当者",
+      "(*)担当者メールアドレス",
+      "(*)個人タグ",
+      "(*)追加個人タグ",
+      "(*)配信除外フラグ"
+    ];
+
+    const LF_REQUIRED_HEADERS = [
+      "(*)メールアドレス",
+      "(*)追加個人タグ"
+    ];
+
+    const SASUKE_REQUIRED_HEADERS = [
+      "サスケ顧客番号",
+      "企業名",
+      "住所",
+      "電話番号",
+      "採用担当者名",
+      "E-mail",
+      "★業界",
+      "★法人従業員数（稼働人数）",
+      "企業ID",
+      "TR契約終了日",
+      "TEN契約終了日",
+      "WEBP契約終了日",
+      "DM可否(0=可、1=不可)"
+    ];
+
+    const PREFECTURES = [
+      "北海道",
+      "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
+      "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
+      "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県",
+      "岐阜県", "静岡県", "愛知県", "三重県",
+      "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県",
+      "鳥取県", "島根県", "岡山県", "広島県", "山口県",
+      "徳島県", "香川県", "愛媛県", "高知県",
+      "福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県",
+      "沖縄県"
+    ];
+
+    lfInput.addEventListener("change", tryRunEtl);
+    sasukeInput.addEventListener("change", tryRunEtl);
+
+    async function tryRunEtl() {
+      const lfFile = lfInput.files[0];
+      const sasukeFile = sasukeInput.files[0];
+
+      if (!lfFile || !sasukeFile) {
+        setStatus("CSVを2つ選択してください。2つ揃うと自動でETL処理を開始します。");
+        return;
+      }
+
+      try {
+        setStatus("CSVを読み込み中です...");
+
+        const lfText = await readCsvFileSmart(lfFile);
+        const sasukeText = await readCsvFileSmart(sasukeFile);
+
+        const lfCsv = parseCsv(lfText);
+        const sasukeCsv = parseCsv(sasukeText);
+
+        validateHeaders(lfCsv.headers, LF_REQUIRED_HEADERS, "リストファインダーCSV");
+        validateHeaders(sasukeCsv.headers, SASUKE_REQUIRED_HEADERS, "サスケCSV");
+
+        setStatus("ETL処理を実行中です...");
+
+        const result = transform(lfCsv.rows, sasukeCsv.rows);
+
+        const csvText = buildCsv(result.rows, OUTPUT_HEADERS);
+        downloadCsv(csvText, makeOutputFilename());
+
+        setStatus(
+          [
+            "処理が完了しました。更新用CSVを自動ダウンロードしました。",
+            "",
+            `リストファインダー読込行数: ${lfCsv.rows.length}`,
+            `サスケ読込行数: ${sasukeCsv.rows.length}`,
+            `変換後行数: ${result.beforeFilterCount}`,
+            `メールアドレス空白による除外: ${result.emptyEmailRemovedCount}`,
+            `メールアドレス以外が空白による除外: ${result.noUpdateRemovedCount}`,
+            `重複メールアドレスによる除外: ${result.duplicateRemovedCount}`,
+            `最終出力行数: ${result.rows.length}`
+          ].join("\n"),
+          "success"
+        );
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || String(error), "error");
+      }
+    }
+
+    async function readCsvFileSmart(file) {
+      const buffer = await file.arrayBuffer();
+
+      try {
+        return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+      } catch (e) {
+        try {
+          return new TextDecoder("shift_jis").decode(buffer);
+        } catch (e2) {
+          throw new Error(`${file.name} の文字コードを読み取れませんでした。UTF-8またはShift-JISのCSVか確認してください。`);
+        }
+      }
+    }
+
+    function parseCsv(text) {
+      text = text.replace(/^\uFEFF/, "");
+
+      const rows = [];
+      let row = [];
+      let field = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const next = text[i + 1];
+
+        if (inQuotes) {
+          if (char === '"' && next === '"') {
+            field += '"';
+            i++;
+          } else if (char === '"') {
+            inQuotes = false;
+          } else {
+            field += char;
+          }
+        } else {
+          if (char === '"') {
+            inQuotes = true;
+          } else if (char === ",") {
+            row.push(field);
+            field = "";
+          } else if (char === "\r") {
+            if (next === "\n") i++;
+            row.push(field);
+            rows.push(row);
+            row = [];
+            field = "";
+          } else if (char === "\n") {
+            row.push(field);
+            rows.push(row);
+            row = [];
+            field = "";
+          } else {
+            field += char;
+          }
+        }
+      }
+
+      row.push(field);
+      rows.push(row);
+
+      const nonEmptyRows = rows.filter(r => r.some(v => String(v).trim() !== ""));
+      if (nonEmptyRows.length === 0) {
+        throw new Error("CSVにデータがありません。");
+      }
+
+      const headers = nonEmptyRows[0].map(h => String(h).replace(/^\uFEFF/, "").trim());
+
+      const dataRows = nonEmptyRows.slice(1).map(values => {
+        const obj = {};
+        headers.forEach((header, index) => {
+          obj[header] = values[index] == null ? "" : String(values[index]).trim();
+        });
+        return obj;
+      });
+
+      return {
+        headers,
+        rows: dataRows
+      };
+    }
+
+    function validateHeaders(actualHeaders, requiredHeaders, label) {
+      const missing = requiredHeaders.filter(h => !actualHeaders.includes(h));
+
+      if (missing.length > 0) {
+        throw new Error(
+          `${label}に必要な列がありません。\n\n不足している列:\n` +
+          missing.map(h => `・${h}`).join("\n")
+        );
+      }
+    }
+
+    function transform(lfRows, sasukeRows) {
+      const lfMap = buildListFinderEmailMap(lfRows);
+
+      const convertedRows = sasukeRows.map(sasukeRow => {
+        const email = normalizeEmail(sasukeRow["E-mail"]);
+        const matchedLfRows = lfMap.get(email) || [];
+        const hasEmailMatch = email !== "" && matchedLfRows.length > 0;
+
+        const processedTag = buildProcessedPersonalTag(sasukeRow);
+        const addressParts = splitAddress(sasukeRow["住所"]);
+
+        const out = createEmptyOutputRow();
+
+        out["(*)連携キー"] = "";
+        out["(*)企業名(個人)"] = hasEmailMatch ? "" : value(sasukeRow["企業名"]);
+        out["(*)企業名カナ"] = "";
+        out["(*)部署"] = "";
+        out["(*)役職"] = "";
+        out["(*)氏"] = hasEmailMatch ? "" : value(sasukeRow["採用担当者名"]);
+        out["(*)名"] = "";
+        out["(*)氏カナ"] = "";
+        out["(*)名カナ"] = "";
+        out["(*)メールアドレス"] = value(sasukeRow["E-mail"]);
+        out["(*)電話1(個人)"] = hasEmailMatch ? "" : value(sasukeRow["電話番号"]);
+        out["(*)電話2(個人)"] = "";
+        out["(*)FAX(個人)"] = "";
+        out["(*)携帯番号"] = "";
+        out["(*)郵便番号"] = "";
+        out["(*)都道府県"] = hasEmailMatch ? "" : addressParts.prefecture;
+        out["(*)市区町村以下"] = hasEmailMatch ? "" : addressParts.rest;
+        out["(*)ビル"] = "";
+        out["(*)URL(個人)"] = "";
+        out["(*)サスケ番号"] = hasEmailMatch ? "" : value(sasukeRow["サスケ顧客番号"]);
+        out["(*)企業ID"] = hasEmailMatch ? "" : value(sasukeRow["企業ID"]);
+        out["(*)最終商談日"] = "";
+        out["(*)自由項目4"] = "";
+        out["(*)自由項目5"] = "";
+        out["(*)メモ"] = "";
+        out["(*)ステータス"] = "";
+        out["担当者"] = "";
+        out["(*)担当者メールアドレス"] = "";
+        out["(*)個人タグ"] = "";
+
+        if (!hasEmailMatch) {
+          out["(*)追加個人タグ"] = processedTag;
+        } else {
+          const alreadyHasTag = matchedLfRows.some(lfRow => {
+            const existingTags = value(lfRow["(*)追加個人タグ"]);
+            return processedTag !== "" && existingTags.includes(processedTag);
+          });
+
+          out["(*)追加個人タグ"] = alreadyHasTag ? "" : processedTag;
+        }
+
+        if (!hasEmailMatch) {
+          const dm = value(sasukeRow["DM可否(0=可、1=不可)"]);
+          out["(*)配信除外フラグ"] = dm === "0" ? "" : dm;
+        } else {
+          out["(*)配信除外フラグ"] = "";
+        }
+
+        return out;
+      });
+
+      const beforeFilterCount = convertedRows.length;
+
+      let emptyEmailRemovedCount = 0;
+      let noUpdateRemovedCount = 0;
+      let duplicateRemovedCount = 0;
+
+      const filteredRows = convertedRows.filter(row => {
+        const email = normalizeEmail(row["(*)メールアドレス"]);
+
+        if (email === "") {
+          emptyEmailRemovedCount++;
+          return false;
+        }
+
+        const hasAnyValueExceptEmail = OUTPUT_HEADERS.some(header => {
+          if (header === "(*)メールアドレス") return false;
+          return value(row[header]) !== "";
+        });
+
+        if (!hasAnyValueExceptEmail) {
+          noUpdateRemovedCount++;
+          return false;
+        }
+
+        return true;
+      });
+
+      const seenEmails = new Set();
+      const dedupedRows = [];
+
+      for (const row of filteredRows) {
+        const email = normalizeEmail(row["(*)メールアドレス"]);
+
+        if (seenEmails.has(email)) {
+          duplicateRemovedCount++;
+          continue;
+        }
+
+        seenEmails.add(email);
+        dedupedRows.push(row);
+      }
+
+      return {
+        rows: dedupedRows,
+        beforeFilterCount,
+        emptyEmailRemovedCount,
+        noUpdateRemovedCount,
+        duplicateRemovedCount
+      };
+    }
+
+    function buildListFinderEmailMap(lfRows) {
+      const map = new Map();
+
+      for (const row of lfRows) {
+        const email = normalizeEmail(row["(*)メールアドレス"]);
+        if (email === "") continue;
+
+        if (!map.has(email)) {
+          map.set(email, []);
+        }
+
+        map.get(email).push(row);
+      }
+
+      return map;
+    }
+
+    function createEmptyOutputRow() {
+      const row = {};
+      OUTPUT_HEADERS.forEach(header => {
+        row[header] = "";
+      });
+      return row;
+    }
+
+    function buildProcessedPersonalTag(row) {
+      const parts = [];
+
+      parts.push(formatContractEndDateTag(
+        row["TR契約終了日"],
+        "テンリク更新月"
+      ));
+
+      parts.push(formatContractEndDateTag(
+        row["TEN契約終了日"],
+        "tenichi更新月"
+      ));
+
+      parts.push(formatContractEndDateTag(
+        row["WEBP契約終了日"],
+        "WEBサービス更新月"
+      ));
+
+      const employeeCount = value(row["★法人従業員数（稼働人数）"]);
+      if (employeeCount !== "") {
+        parts.push(`従業員規模_${employeeCount},`);
+      }
+
+      const industry = value(row["★業界"]);
+      if (industry !== "") {
+        parts.push(`業界_${industry},`);
+      }
+
+      return parts.join("");
+    }
+
+    function formatContractEndDateTag(dateText, prefix) {
+      const text = value(dateText);
+      if (text === "") return "";
+
+      const match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (!match) return "";
+
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+
+      if (!Number.isFinite(year) || !Number.isFinite(month)) return "";
+
+      if (year <= 2015) {
+        return `${prefix}_2015年以前,`;
+      }
+
+      if (year >= 2016 && year <= 2020) {
+        return `${prefix}_${year}年,`;
+      }
+
+      return `${prefix}_${year}年${month}月,`;
+    }
+
+    function splitAddress(address) {
+      const text = value(address);
+      if (text === "") {
+        return {
+          prefecture: "",
+          rest: ""
+        };
+      }
+
+      const prefecture = PREFECTURES.find(pref => text.startsWith(pref));
+
+      if (!prefecture) {
+        return {
+          prefecture: "",
+          rest: text
+        };
+      }
+
+      return {
+        prefecture,
+        rest: text.slice(prefecture.length)
+      };
+    }
+
+    function buildCsv(rows, headers) {
+      const lines = [];
+
+      lines.push(headers.map(escapeCsvValue).join(","));
+
+      for (const row of rows) {
+        const line = headers.map(header => escapeCsvValue(row[header] || "")).join(",");
+        lines.push(line);
+      }
+
+      return "\uFEFF" + lines.join("\r\n");
+    }
+
+    function escapeCsvValue(value) {
+      const text = String(value ?? "");
+
+      if (/[",\r\n]/.test(text)) {
+        return `"${text.replace(/"/g, '""')}"`;
+      }
+
+      return text;
+    }
+
+    function downloadCsv(csvText, filename) {
+      const blob = new Blob([csvText], {
+        type: "text/csv;charset=utf-8;"
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function makeOutputFilename() {
+      const now = new Date();
+
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mi = String(now.getMinutes()).padStart(2, "0");
+      const ss = String(now.getSeconds()).padStart(2, "0");
+
+      return `listfinder_update_${yyyy}${mm}${dd}_${hh}${mi}${ss}.csv`;
+    }
+
+    function normalizeEmail(email) {
+      return value(email).toLowerCase();
+    }
+
+    function value(v) {
+      return String(v ?? "").trim();
+    }
+
+    function setStatus(message, type = "") {
+      statusEl.className = "status";
+      if (type) statusEl.classList.add(type);
+      statusEl.textContent = message;
+    }
+  </script>
+</body>
+</html>
