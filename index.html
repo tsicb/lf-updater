@@ -163,7 +163,7 @@
 
     const LF_REQUIRED_HEADERS = [
       "(*)メールアドレス",
-      "(*)追加個人タグ"
+      "(*)個人タグ"
     ];
 
     const SASUKE_REQUIRED_HEADERS = [
@@ -386,7 +386,7 @@
           out["(*)追加個人タグ"] = processedTag;
         } else {
           const alreadyHasTag = matchedLfRows.some(lfRow => {
-            const existingTags = value(lfRow["(*)追加個人タグ"]);
+            const existingTags = value(lfRow["(*)個人タグ"]);
             return processedTag !== "" && existingTags.includes(processedTag);
           });
 
