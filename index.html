@@ -393,12 +393,8 @@
           out["(*)追加個人タグ"] = alreadyHasTag ? "" : processedTag;
         }
 
-        if (!hasEmailMatch) {
-          const dm = value(sasukeRow["DM可否(0=可、1=不可)"]);
-          out["(*)配信除外フラグ"] = dm === "0" ? "" : dm;
-        } else {
-          out["(*)配信除外フラグ"] = "";
-        }
+        const dm = value(sasukeRow["DM可否(0=可、1=不可)"]);
+        out["(*)配信除外フラグ"] = dm === "0" ? "" : dm;
 
         return out;
       });
