@@ -5,121 +5,235 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>リストファインダー更新CSV作成ツール</title>
   <style>
+    :root {
+      --wood-bg: #efe4d3;
+      --wood-bg-2: #e4d1b5;
+      --wood-panel: #f8f1e6;
+      --wood-line: #8a6442;
+      --wood-line-soft: #b08a67;
+      --wood-accent: #6f4b2f;
+      --wood-accent-2: #9b6b45;
+      --text-main: #3b2a1d;
+      --text-sub: #6b5747;
+      --success-bg: #edf6ea;
+      --success-text: #2f5d32;
+      --error-bg: #fff1ef;
+      --error-text: #9a2e21;
+      --info-bg: #f5eee5;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 0;
-      background: #f6f7f9;
-      color: #222;
+      font-family: "Hiragino Sans", "Yu Gothic", "Meiryo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text-main);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.25), rgba(0,0,0,0.03)),
+        repeating-linear-gradient(
+          90deg,
+          #eadbc7 0px,
+          #eadbc7 38px,
+          #e3d0b8 38px,
+          #e3d0b8 76px
+        );
+      min-height: 100vh;
+      padding: 28px;
     }
 
     .container {
-      max-width: 920px;
-      margin: 40px auto;
-      padding: 24px;
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      max-width: 980px;
+      margin: 0 auto;
+      background: var(--wood-panel);
+      border: 2px solid var(--wood-line);
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow:
+        0 12px 32px rgba(72, 46, 24, 0.18),
+        inset 0 1px 0 rgba(255,255,255,0.7);
+      position: relative;
+    }
+
+    .container::before {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border: 1px solid rgba(138, 100, 66, 0.25);
+      border-radius: 12px;
+      pointer-events: none;
     }
 
     h1 {
-      font-size: 24px;
-      margin: 0 0 12px;
+      margin: 0 0 10px;
+      font-size: 28px;
+      line-height: 1.4;
+      color: var(--wood-accent);
+      letter-spacing: 0.02em;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-bottom: 14px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #e7d4bd;
+      border: 1px solid var(--wood-line-soft);
+      color: var(--wood-accent);
+      font-size: 13px;
+      font-weight: 700;
     }
 
     .lead {
-      color: #555;
-      line-height: 1.7;
-      margin-bottom: 24px;
+      margin: 0 0 24px;
+      color: var(--text-sub);
+      line-height: 1.9;
+      font-size: 15px;
     }
 
     .upload-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 24px;
+      gap: 18px;
+      margin-bottom: 22px;
     }
 
     .upload-box {
-      border: 2px dashed #c9d2df;
-      border-radius: 14px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.45), rgba(255,255,255,0.2)),
+        var(--wood-bg);
+      border: 2px dashed var(--wood-line-soft);
+      border-radius: 16px;
       padding: 20px;
-      background: #fafbfc;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
     }
 
     .upload-box h2 {
+      margin: 0 0 10px;
       font-size: 18px;
+      color: var(--wood-accent);
+    }
+
+    .upload-desc {
       margin: 0 0 12px;
+      color: var(--text-sub);
+      font-size: 13px;
+      line-height: 1.7;
     }
 
     input[type="file"] {
       width: 100%;
-    }
-
-    .status {
-      padding: 16px;
-      background: #f0f4f8;
-      border-radius: 12px;
-      line-height: 1.7;
-      white-space: pre-wrap;
+      padding: 10px;
+      border: 1px solid var(--wood-line-soft);
+      border-radius: 10px;
+      background: #fffdf9;
+      color: var(--text-main);
       font-size: 14px;
     }
 
-    .status.error {
-      background: #fff0f0;
-      color: #a40000;
+    .status {
+      margin-top: 6px;
+      padding: 16px 18px;
+      background: var(--info-bg);
+      border: 1px solid #d8bea2;
+      border-radius: 14px;
+      white-space: pre-wrap;
+      line-height: 1.8;
+      font-size: 14px;
+      color: var(--text-main);
     }
 
     .status.success {
-      background: #effaf2;
-      color: #145c2b;
+      background: var(--success-bg);
+      border-color: #bdd8be;
+      color: var(--success-text);
+    }
+
+    .status.error {
+      background: var(--error-bg);
+      border-color: #e1b8b2;
+      color: var(--error-text);
     }
 
     .note {
-      margin-top: 20px;
+      margin-top: 22px;
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.45);
+      border: 1px solid #d8bea2;
+      border-radius: 12px;
+      color: var(--text-sub);
       font-size: 13px;
-      color: #666;
-      line-height: 1.7;
+      line-height: 1.85;
     }
 
-    @media (max-width: 720px) {
+    .footer-mini {
+      margin-top: 14px;
+      color: #866a53;
+      font-size: 12px;
+    }
+
+    @media (max-width: 760px) {
+      body {
+        padding: 16px;
+      }
+
+      .container {
+        padding: 20px;
+      }
+
       .upload-grid {
         grid-template-columns: 1fr;
       }
 
-      .container {
-        margin: 20px;
+      h1 {
+        font-size: 24px;
       }
     }
   </style>
 </head>
 <body>
   <main class="container">
+    <div class="badge">木づくりイメージ / ローカルETLツール</div>
     <h1>リストファインダー更新CSV作成ツール</h1>
     <p class="lead">
-      リストファインダーCSVとサスケCSVをアップロードすると、突き合わせ・加工・絞り込みを行い、
-      リストファインダー更新用CSVを自動ダウンロードします。
+      リストファインダーCSVとサスケCSVをアップロードすると、ブラウザ内で突き合わせ・加工・絞り込みを行い、
+      リストファインダー更新用CSVを自動生成してダウンロードします。
     </p>
 
     <div class="upload-grid">
       <section class="upload-box">
         <h2>1. リストファインダーCSV</h2>
+        <p class="upload-desc">
+          必須列：<br>
+          「(*)メールアドレス」<br>
+          「(*)個人タグ」
+        </p>
         <input id="lfFile" type="file" accept=".csv,text/csv" />
       </section>
 
       <section class="upload-box">
         <h2>2. サスケCSV</h2>
+        <p class="upload-desc">
+          顧客番号、企業名、住所、電話番号、採用担当者名、E-mail などを含むCSVを指定してください。
+        </p>
         <input id="sasukeFile" type="file" accept=".csv,text/csv" />
       </section>
     </div>
 
     <div id="status" class="status">
-      CSVを2つ選択してください。2つ揃うと自動でETL処理を開始します。
+CSVを2つ選択してください。2つ揃うと自動でETL処理を開始します。
     </div>
 
-    <p class="note">
-      ※すべての処理はブラウザ内で完結します。CSVファイルは外部サーバーへ送信されません。<br>
-      ※入力CSVはUTF-8 / Shift-JISの自動判定に対応しています。出力CSVはUTF-8 BOM付きです。
-    </p>
+    <div class="note">
+      ※ 処理はすべてブラウザ内で完結します。ファイルは外部送信されません。<br>
+      ※ 入力CSVは UTF-8 / Shift-JIS の自動判定に対応しています。<br>
+      ※ 出力CSVは UTF-8 BOM付きで保存されます。
+    </div>
+
+    <div class="footer-mini">
+      GitHub Pagesでそのまま公開できるシンプル構成です。
+    </div>
   </main>
 
   <script>
@@ -227,19 +341,15 @@
         downloadCsv(csvText, makeOutputFilename());
 
         setStatus(
-          [
-            "処理が完了しました。更新用CSVを自動ダウンロードしました。",
-            "",
-            `リストファインダー読込行数: ${lfCsv.rows.length}`,
-            `サスケ読込行数: ${sasukeCsv.rows.length}`,
-            `変換後行数: ${result.beforeFilterCount}`,
-            `メールアドレス空白による除外: ${result.emptyEmailRemovedCount}`,
-            `メールアドレス以外が空白による除外: ${result.noUpdateRemovedCount}`,
-            `重複メールアドレスによる除外: ${result.duplicateRemovedCount}`,
-            `最終出力行数: ${result.rows.length}`
-          ].join("\n"),
-          "success"
-        );
+`処理が完了しました。更新用CSVを自動ダウンロードしました。
+
+リストファインダー読込行数: ${lfCsv.rows.length}
+サスケ読込行数: ${sasukeCsv.rows.length}
+変換後行数: ${result.beforeFilterCount}
+メールアドレス空白による除外: ${result.emptyEmailRemovedCount}
+メールアドレス以外が空白による除外: ${result.noUpdateRemovedCount}
+重複メールアドレスによる除外: ${result.duplicateRemovedCount}
+最終出力行数: ${result.rows.length}`, "success");
       } catch (error) {
         console.error(error);
         setStatus(error.message || String(error), "error");
@@ -478,20 +588,9 @@
     function buildProcessedPersonalTag(row) {
       const parts = [];
 
-      parts.push(formatContractEndDateTag(
-        row["TR契約終了日"],
-        "テンリク更新月"
-      ));
-
-      parts.push(formatContractEndDateTag(
-        row["TEN契約終了日"],
-        "tenichi更新月"
-      ));
-
-      parts.push(formatContractEndDateTag(
-        row["WEBP契約終了日"],
-        "WEBサービス更新月"
-      ));
+      parts.push(formatContractEndDateTag(row["TR契約終了日"], "テンリク更新月"));
+      parts.push(formatContractEndDateTag(row["TEN契約終了日"], "tenichi更新月"));
+      parts.push(formatContractEndDateTag(row["WEBP契約終了日"], "WEBサービス更新月"));
 
       const employeeCount = value(row["★法人従業員数（稼働人数）"]);
       if (employeeCount !== "") {
@@ -532,19 +631,13 @@
     function splitAddress(address) {
       const text = value(address);
       if (text === "") {
-        return {
-          prefecture: "",
-          rest: ""
-        };
+        return { prefecture: "", rest: "" };
       }
 
       const prefecture = PREFECTURES.find(pref => text.startsWith(pref));
 
       if (!prefecture) {
-        return {
-          prefecture: "",
-          rest: text
-        };
+        return { prefecture: "", rest: text };
       }
 
       return {
@@ -555,7 +648,6 @@
 
     function buildCsv(rows, headers) {
       const lines = [];
-
       lines.push(headers.map(escapeCsvValue).join(","));
 
       for (const row of rows) {
@@ -568,11 +660,9 @@
 
     function escapeCsvValue(value) {
       const text = String(value ?? "");
-
       if (/[",\r\n]/.test(text)) {
         return `"${text.replace(/"/g, '""')}"`;
       }
-
       return text;
     }
 
@@ -595,7 +685,6 @@
 
     function makeOutputFilename() {
       const now = new Date();
-
       const yyyy = now.getFullYear();
       const mm = String(now.getMonth() + 1).padStart(2, "0");
       const dd = String(now.getDate()).padStart(2, "0");
