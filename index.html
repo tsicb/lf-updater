@@ -9,6 +9,8 @@
       --bg: #eee6dc;
       --panel: #fbfaf7;
       --panel-soft: #f4eee6;
+      --drop-bg: #fffdfa;
+      --drop-bg-active: #f1e4d6;
       --line: #c8b19f;
       --line-dark: #a2836b;
       --text: #3d3029;
@@ -96,7 +98,7 @@
     }
 
     .upload-card {
-      min-height: 172px;
+      min-height: 220px;
       border: 1px solid var(--line);
       outline: 3px double rgba(162, 131, 107, 0.28);
       outline-offset: -5px;
@@ -124,19 +126,52 @@
       font-weight: 800;
     }
 
-    .file-row {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
-
     .file-input {
       position: absolute;
       inline-size: 1px;
       block-size: 1px;
       opacity: 0;
       pointer-events: none;
+    }
+
+    .drop-zone {
+      min-height: 112px;
+      padding: 18px 16px;
+      border: 2px dashed #cdb7a5;
+      background: var(--drop-bg);
+      text-align: center;
+      cursor: default;
+      transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.15s ease;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      background: var(--drop-bg-active);
+      border-color: var(--accent-dark);
+      box-shadow: inset 0 0 0 2px rgba(155, 122, 99, 0.12);
+    }
+
+    .drop-zone.drag-over {
+      transform: translateY(-1px);
+    }
+
+    .drop-zone-main {
+      margin: 0 0 6px;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: 0.03em;
+    }
+
+    .drop-zone-sub {
+      margin: 0 0 14px;
+      font-size: 12px;
+      color: var(--sub);
+      line-height: 1.6;
     }
 
     .file-button {
@@ -159,8 +194,8 @@
     }
 
     .file-name {
-      min-width: 0;
-      flex: 1;
+      display: block;
+      margin-top: 12px;
       color: var(--sub);
       font-size: 14px;
       line-height: 1.6;
@@ -259,8 +294,11 @@
         <span class="step">STEP 01</span>
         <h2>リストファインダーCSV</h2>
 
-        <div class="file-row">
-          <input id="lfFile" class="file-input" type="file" accept=".csv,text/csv" />
+        <input id="lfFile" class="file-input" type="file" accept=".csv,text/csv" />
+
+        <div id="lfDropZone" class="drop-zone">
+          <p class="drop-zone-main">ここにCSVをドラッグ＆ドロップ</p>
+          <p class="drop-zone-sub">または下のボタンから選択してください</p>
           <label for="lfFile" class="file-button">参照...</label>
           <span id="lfFileName" class="file-name">ファイルが選択されていません。</span>
         </div>
@@ -270,8 +308,11 @@
         <span class="step">STEP 02</span>
         <h2>サスケCSV</h2>
 
-        <div class="file-row">
-          <input id="sasukeFile" class="file-input" type="file" accept=".csv,text/csv" />
+        <input id="sasukeFile" class="file-input" type="file" accept=".csv,text/csv" />
+
+        <div id="sasukeDropZone" class="drop-zone">
+          <p class="drop-zone-main">ここにCSVをドラッグ＆ドロップ</p>
+          <p class="drop-zone-sub">または下のボタンから選択してください</p>
           <label for="sasukeFile" class="file-button">参照...</label>
           <span id="sasukeFileName" class="file-name">ファイルが選択されていません。</span>
         </div>
@@ -293,7 +334,12 @@ CSVを2つ選択してください。2つ揃うと自動でETL処理を開始し
     const sasukeInput = document.getElementById("sasukeFile");
     const lfFileName = document.getElementById("lfFileName");
     const sasukeFileName = document.getElementById("sasukeFileName");
+    const lfDropZone = document.getElementById("lfDropZone");
+    const sasukeDropZone = document.getElementById("sasukeDropZone");
     const statusEl = document.getElementById("status");
+
+    let selectedLfFile = null;
+    let selectedSasukeFile = null;
 
     const OUTPUT_HEADERS = [
       "(*)連携キー",
@@ -364,18 +410,87 @@ CSVを2つ選択してください。2つ揃うと自動でETL処理を開始し
     ];
 
     lfInput.addEventListener("change", () => {
-      lfFileName.textContent = lfInput.files[0]?.name || "ファイルが選択されていません。";
+      selectedLfFile = lfInput.files[0] || null;
+      updateFileName(lfFileName, selectedLfFile);
       tryRunEtl();
     });
 
     sasukeInput.addEventListener("change", () => {
-      sasukeFileName.textContent = sasukeInput.files[0]?.name || "ファイルが選択されていません。";
+      selectedSasukeFile = sasukeInput.files[0] || null;
+      updateFileName(sasukeFileName, selectedSasukeFile);
       tryRunEtl();
     });
 
+    setupDropZone(lfDropZone, file => {
+      selectedLfFile = file;
+      updateFileName(lfFileName, selectedLfFile);
+      tryRunEtl();
+    });
+
+    setupDropZone(sasukeDropZone, file => {
+      selectedSasukeFile = file;
+      updateFileName(sasukeFileName, selectedSasukeFile);
+      tryRunEtl();
+    });
+
+    document.addEventListener("dragover", event => {
+      event.preventDefault();
+    });
+
+    document.addEventListener("drop", event => {
+      event.preventDefault();
+    });
+
+    function setupDropZone(dropZone, onFileSelected) {
+      dropZone.addEventListener("dragenter", event => {
+        event.preventDefault();
+        dropZone.classList.add("drag-over");
+      });
+
+      dropZone.addEventListener("dragover", event => {
+        event.preventDefault();
+        dropZone.classList.add("drag-over");
+      });
+
+      dropZone.addEventListener("dragleave", event => {
+        event.preventDefault();
+
+        if (!dropZone.contains(event.relatedTarget)) {
+          dropZone.classList.remove("drag-over");
+        }
+      });
+
+      dropZone.addEventListener("drop", event => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        dropZone.classList.remove("drag-over");
+
+        const file = event.dataTransfer.files[0];
+
+        if (!file) return;
+
+        if (!isCsvFile(file)) {
+          setStatus("CSVファイルを選択してください。", "error");
+          return;
+        }
+
+        onFileSelected(file);
+      });
+    }
+
+    function updateFileName(targetEl, file) {
+      targetEl.textContent = file ? file.name : "ファイルが選択されていません。";
+    }
+
+    function isCsvFile(file) {
+      const name = file.name.toLowerCase();
+      return name.endsWith(".csv") || file.type === "text/csv";
+    }
+
     async function tryRunEtl() {
-      const lfFile = lfInput.files[0];
-      const sasukeFile = sasukeInput.files[0];
+      const lfFile = selectedLfFile;
+      const sasukeFile = selectedSasukeFile;
 
       if (!lfFile || !sasukeFile) {
         setStatus("CSVを2つ選択してください。2つ揃うと自動でETL処理を開始します。");
