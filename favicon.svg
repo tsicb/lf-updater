@@ -1,59 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- background -->
-  <rect x="4" y="4" width="56" height="56" rx="14" fill="#fbfaf7"/>
-  <rect x="4" y="4" width="56" height="56" rx="14" fill="none" stroke="#c8b19f" stroke-width="3"/>
-
-  <!-- file body -->
   <path
-    d="M20 12H40L50 22V50C50 52.2 48.2 54 46 54H20C17.8 54 16 52.2 16 50V16C16 13.8 17.8 12 20 12Z"
+    d="M18 10H38L50 22V50C50 52.2 48.2 54 46 54H18C15.8 54 14 52.2 14 50V14C14 11.8 15.8 10 18 10Z"
     fill="#fffdfa"
-    stroke="#765944"
-    stroke-width="3"
+    stroke="#6f5442"
+    stroke-width="5"
     stroke-linejoin="round"
   />
 
-  <!-- folded corner -->
   <path
-    d="M40 12V22H50"
+    d="M38 10V22H50"
     fill="none"
-    stroke="#765944"
-    stroke-width="3"
+    stroke="#6f5442"
+    stroke-width="5"
     stroke-linejoin="round"
   />
 
-  <!-- CSV text -->
-  <text
-    x="33"
-    y="35"
-    text-anchor="middle"
-    font-family="Arial, sans-serif"
-    font-size="11"
-    font-weight="700"
-    fill="#765944"
-  >CSV</text>
-
-  <!-- leaf -->
   <path
-    d="M19 47C20 38 29 34 37 38C34 47 26 51 19 47Z"
-    fill="#8a9a5b"
-    stroke="#5f6f3a"
-    stroke-width="2"
-    stroke-linejoin="round"
-  />
-  <path
-    d="M20 47C25 43 30 40 36 38"
-    fill="none"
-    stroke="#f6f1df"
-    stroke-width="2"
-    stroke-linecap="round"
-  />
-
-  <!-- check mark -->
-  <path
-    d="M36 47L42 53L54 39"
+    d="M27 39L33 45L46 31"
     fill="none"
     stroke="#9b7a63"
-    stroke-width="5"
+    stroke-width="6"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
